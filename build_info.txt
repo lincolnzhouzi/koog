@@ -1,0 +1,386 @@
+让我先搜索一下Koog项目中是否有A2A协议相关的实现。
+        
+            
+toolName: search_codebase
+            
+status: success
+          
+query: A2A protocol implementation or agent-to-agent communication in Koog framework
+          
+
+        
+            
+toolName: search_by_regex
+            
+status: success
+          
+query: A2A|agent.?to.?agent|AgentToAgent
+          
+太好了！**Koog完全支持A2A协议**！让我查看更多细节来给你一个完整的方案。
+        
+            
+toolName: view_files
+            
+status: success
+          
+            
+filePath: d:\workspace\koog\docs\docs\a2a-protocol-overview.md
+          
+
+        
+            
+toolName: view_files
+            
+status: success
+          
+            
+filePath: d:\workspace\koog\docs\docs\a2a-koog-integration.md
+          
+
+        
+            
+toolName: view_files
+            
+status: success
+          
+            
+filePath: d:\workspace\koog\examples\simple-examples\src\main\kotlin\ai\koog\agents\example\a2a\simplejoke\Server.kt
+          
+
+        
+            
+toolName: view_files
+            
+status: success
+          
+            
+filePath: d:\workspace\koog\examples\simple-examples\src\main\kotlin\ai\koog\agents\example\a2a\simplejoke\Client.kt
+          
+太棒了！**Koog完全支持A2A协议**！这是一个非常完美的匹配。让我给你详细说明如何实现手机Agent与PC OpenClaw的A2A通信互联。
+
+## Koog的A2A协议支持
+
+Koog提供了完整的A2A协议v0.3.0实现，包括：
+
+| 组件 | 说明 |
+|------|------|
+| **A2A Server** | 将Koog Agent暴露为A2A服务端 |
+| **A2A Client** | 让Koog Agent作为客户端连接其他A2A Agent |
+| **A2A Koog Integration** | 无缝集成特性，提供预构建节点 |
+
+## 架构设计方案
+
+针对你的场景，我推荐以下架构：
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    PC OpenClaw (A2A Server)                 │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │ A2A Server  │  │ Task Manager│  │ Workflow Engine     │  │
+│  │ (JSON-RPC)  │  │             │  │                     │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+│         ↑                                                   │
+│         │ A2A Protocol (JSON-RPC over HTTP)                 │
+│         ↓                                                   │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                 Mobile Agent (A2A Client)                   │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │ A2A Client  │  │ Koog Agent  │  │ Platform Tools      │  │
+│  │ Feature     │  │ Strategy    │  │ (App/File/Network)  │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+│         ↓                                                   │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │         Platform Services (Android/iOS)                 ││
+│  │  - Accessibility Service                                ││
+│  │  - File Operations                                      ││
+│  │  - Network Operations                                   ││
+│  └─────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────┘
+```
+
+## 具体实现方案
+
+### 1. 依赖配置
+
+```kotlin
+// build.gradle.kts
+dependencies {
+    // Koog A2A Client Feature (Mobile端作为客户端)
+    implementation("ai.koog:agents-features-a2a-client:$koogVersion")
+    implementation("ai.koog:a2a-transport-client-jsonrpc-http:$koogVersion")
+    implementation("io.ktor:ktor-client-cio:$ktorVersion")
+    
+    // 或者如果Mobile端也要作为服务端
+    implementation("ai.koog:agents-features-a2a-server:$koogVersion")
+    implementation("ai.koog:a2a-transport-server-jsonrpc-http:$koogVersion")
+}
+```
+
+### 2. Mobile Agent实现（作为A2A客户端连接PC）
+
+```kotlin
+class MobileOpenClawAgent(
+    private val pcServerUrl: String,
+    private val platformService: PlatformService
+) {
+    private lateinit var a2aClient: A2AClient
+    
+    suspend fun initialize() {
+        val transport = HttpJSONRPCClientTransport(url = pcServerUrl)
+        val agentCardResolver = UrlAgentCardResolver(
+            baseUrl = pcServerUrl.substringBeforeLast("/"),
+            path = "/agent-card.json"
+        )
+        a2aClient = A2AClient(transport = transport, agentCardResolver = agentCardResolver)
+        a2aClient.connect()
+    }
+    
+    fun createAgent() = AIAgent(
+        promptExecutor = simpleOpenAIExecutor(System.getenv("OPENAI_API_KEY")),
+        llmModel = OpenAIModels.Chat.GPT4o,
+        toolRegistry = ToolRegistry {
+            tool(AppOperationTool(platformService))
+            tool(FileOperationTool(platformService))
+            tool(CommunicateWithPCTool(a2aClient))
+        },
+        strategy = strategy<String, String>("mobile-agent") {
+            val nodeAnalyze by node<String, TaskType> { input ->
+                withA2AAgentClient("pc-openclaw") {
+                    sendTaskUpdate("Analyzing task: $input", TaskState.Working)
+                }
+                analyzeTaskType(input)
+            }
+            
+            val nodeLocalExecute by node<TaskType, String> { taskType ->
+                when (taskType) {
+                    TaskType.LOCAL_APP -> executeLocalAppTask()
+                    TaskType.PC_COORDINATION -> executeWithPCCoordination()
+                    TaskType.PC_DELEGATE -> delegateToPC()
+                }
+            }
+            
+            val nodePCCommunicate by node<String, String> { message ->
+                withA2AAgentClient("pc-openclaw") {
+                    val response = sendMessageToAgent(
+                        agentId = "pc-openclaw",
+                        message = message
+                    )
+                    (response.data as Message).toKoogMessage().content
+                }
+            }
+            
+            edge(nodeStart forwardTo nodeAnalyze)
+            edge(nodeAnalyze forwardTo nodeLocalExecute onCondition { it != TaskType.PC_DELEGATE })
+            edge(nodeAnalyze forwardTo nodePCCommunicate onCondition { it == TaskType.PC_DELEGATE })
+            edge(nodeLocalExecute forwardTo nodeFinish)
+            edge(nodePCCommunicate forwardTo nodeFinish)
+        }
+    ) {
+        install(A2AAgentClient) {
+            this.a2aClients = mapOf("pc-openclaw" to a2aClient)
+        }
+    }
+}
+```
+
+### 3. PC-Mobile通信工具
+
+```kotlin
+class CommunicateWithPCTool(
+    private val a2aClient: A2AClient
+) : Tool<CommunicateWithPCTool.Args, CommunicateWithPCTool.Result> {
+    
+    data class Args(
+        val action: PCAction,
+        val payload: String
+    )
+    
+    sealed class PCAction {
+        object QueryStatus : PCAction()
+        object RequestResource : PCAction()
+        object SyncData : PCAction()
+        object ExecuteOnPC : PCAction()
+    }
+    
+    data class Result(
+        val success: Boolean,
+        val response: String?,
+        val error: String? = null
+    )
+    
+    override val name = "communicate_with_pc"
+    override val description = "与PC端OpenClaw进行通信，支持状态查询、资源请求、数据同步等"
+    
+    override suspend fun execute(args: Args): Result {
+        return try {
+            val message = Message(
+                messageId = Uuid.random().toString(),
+                role = Role.User,
+                parts = listOf(TextPart("${args.action::class.simpleName}: ${args.payload}"))
+            )
+            
+            val response = a2aClient.sendMessage(
+                Request(MessageSendParams(message = message))
+            )
+            
+            when (response.data) {
+                is Message -> Result(true, (response.data as Message).toKoogMessage().content)
+                is Task -> Result(true, (response.data as Task).status.message?.parts?.firstOrNull()?.let { 
+                    (it as? TextPart)?.text 
+                })
+                else -> Result(false, null, "Unexpected response type")
+            }
+        } catch (e: Exception) {
+            Result(false, null, e.message)
+        }
+    }
+}
+```
+
+### 4. 双向通信架构（Mobile也可作为Server）
+
+如果需要PC主动向Mobile发送请求，Mobile也可以作为A2A Server：
+
+```kotlin
+class MobileA2AServer(
+    private val port: Int = 8080
+) {
+    fun start() {
+        val agentCard = AgentCard(
+            name = "Mobile OpenClaw Agent",
+            url = "http://localhost:$port/mobile-agent",
+            description = "Mobile agent with accessibility capabilities",
+            version = "1.0.0",
+            protocolVersion = "0.3.0",
+            preferredTransport = TransportProtocol.JSONRPC,
+            capabilities = AgentCapabilities(
+                streaming = true,
+                pushNotifications = true
+            ),
+            skills = listOf(
+                AgentSkill(
+                    id = "mobile_operations",
+                    name = "Mobile Operations",
+                    description = "Execute operations on mobile device",
+                    tags = listOf("mobile", "accessibility", "automation")
+                )
+            )
+        )
+        
+        val server = A2AServer(
+            agentExecutor = MobileAgentExecutor(),
+            agentCard = agentCard
+        )
+        
+        val transport = HttpJSONRPCServerTransport(server)
+        transport.start(
+            engineFactory = CIO,
+            port = port,
+            path = "/mobile-agent",
+            wait = true
+        )
+    }
+}
+```
+
+## 通信场景示例
+
+### 场景1：Mobile委托PC执行任务
+```kotlin
+// Mobile端发起请求
+suspend fun delegateToPC(taskDescription: String): String {
+    return withA2AAgentClient("pc-openclaw") {
+        val response = sendMessageToAgent(
+            agentId = "pc-openclaw",
+            message = "Please execute: $taskDescription"
+        )
+        processResponse(response)
+    }
+}
+```
+
+### 场景2：PC请求Mobile执行操作
+```kotlin
+// PC端通过A2A调用Mobile
+// Mobile端作为Server接收请求
+class MobileAgentExecutor : AgentExecutor {
+    override suspend fun execute(request: Request<MessageSendParams>): Response<*> {
+        val message = request.params.message
+        val content = (message.parts.first() as TextPart).text
+        
+        // 解析并执行Mobile操作
+        val result = when {
+            content.startsWith("OPEN_APP") -> openApp(content.removePrefix("OPEN_APP: "))
+            content.startsWith("CLICK") -> clickElement(content.removePrefix("CLICK: "))
+            else -> "Unknown command"
+        }
+        
+        return Response(
+            data = Message(
+                messageId = Uuid.random().toString(),
+                role = Role.Agent,
+                parts = listOf(TextPart(result))
+            )
+        )
+    }
+}
+```
+
+### 场景3：双向协作工作流
+```kotlin
+val collaborativeStrategy = strategy<String, String>("collaborative") {
+    val nodeAnalyze by node<String, TaskPlan> { input ->
+        val pcCapabilities = withA2AAgentClient("pc-openclaw") {
+            getAgentCard("pc-openclaw").capabilities
+        }
+        planTask(input, pcCapabilities)
+    }
+    
+    val nodeMobileExecute by node<SubTask, String> { subTask ->
+        executeOnMobile(subTask)
+    }
+    
+    val nodePCExecute by node<SubTask, String> { subTask ->
+        withA2AAgentClient("pc-openclaw") {
+            sendMessageToAgent("pc-openclaw", subTask.description)
+            awaitResponse()
+        }
+    }
+    
+    val nodeSync by node<List<String>, String> { results ->
+        withA2AAgentClient("pc-openclaw") {
+            sendMessageToAgent("pc-openclaw", "SYNC_RESULTS: ${results.joinToString()}")
+            awaitResponse()
+        }
+    }
+    
+    // 构建协作流程图
+    edge(nodeStart forwardTo nodeAnalyze)
+    edge(nodeAnalyze forwardTo nodeMobileExecute onCondition { it.assignedTo == "mobile" })
+    edge(nodeAnalyze forwardTo nodePCExecute onCondition { it.assignedTo == "pc" })
+    edge(nodeMobileExecute forwardTo nodeSync)
+    edge(nodePCExecute forwardTo nodeSync)
+    edge(nodeSync forwardTo nodeFinish)
+}
+```
+
+## 关键优势
+
+| 特性 | 说明 |
+|------|------|
+| **标准化协议** | A2A是开放标准，确保互操作性 |
+| **流式响应** | 支持实时任务状态更新 |
+| **推送通知** | 支持异步事件通知 |
+| **Agent Card** | 自动发现和描述Agent能力 |
+| **多传输协议** | JSON-RPC over HTTP，未来可扩展gRPC |
+
+## 下一步建议
+
+1. **确定通信方向**：决定是单向（Mobile→PC）还是双向通信
+2. **定义消息格式**：设计Mobile和PC之间的任务委托协议
+3. **实现发现机制**：PC如何发现局域网内的Mobile Agent
+4. **安全考虑**：添加认证和加密
+
+需要我详细展开哪个部分的实现吗？

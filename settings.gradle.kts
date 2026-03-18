@@ -94,3 +94,5 @@ include(":docs")
 
 include(":test-utils")
 include(":utils")
+
+include(":cortex-claw")

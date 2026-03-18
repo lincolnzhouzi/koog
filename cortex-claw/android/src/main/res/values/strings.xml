@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Cortex Claw</string>
+    <string name="agent_status_ready">Agent Ready</string>
+    <string name="agent_status_processing">Processing...</string>
+    <string name="agent_status_error">Error</string>
+    <string name="device_discovery_title">Device Discovery</string>
+    <string name="model_download_title">Model Download</string>
+    <string name="settings_title">Settings</string>
+</resources>
