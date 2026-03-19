@@ -1,18 +1,17 @@
 package ai.koog.cortexclaw.core.agent.node
 
-import ai.koog.agents.core.dsl.builder.NodeBuilder
-import ai.koog.agents.core.dsl.builder.node
+import ai.koog.agents.core.dsl.builder.AIAgentNodeDelegate
+import ai.koog.agents.core.dsl.builder.AIAgentSubgraphBuilderBase
 import ai.koog.cortexclaw.core.agent.context.AgentContext
 import ai.koog.cortexclaw.device.DeviceManager
-import ai.koog.prompt.model.Prompt
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
-public fun NodeBuilder<String>.nodeQueryProcessing(
+public fun AIAgentSubgraphBuilderBase<*, *>.nodeQueryProcessing(
     name: String,
     context: AgentContext
-) = node(name) { input ->
+): AIAgentNodeDelegate<String, String> = node(name) { input ->
     val queryType = extractQueryType(input)
     
     when (queryType) {
@@ -61,18 +60,18 @@ private suspend fun processDeviceStatusQuery(input: String, context: AgentContex
         
         if (device != null) {
             val status = deviceManager.getDeviceStatus(device.id)
-            "设备 $targetDevice 当前状态: ${status.state}"
+            "设备 $targetDevice 当前状态是：${status.state}"
         } else {
-            "未找到设备: $targetDevice"
+            "未找到设备：$targetDevice"
         }
     } catch (e: Exception) {
-        "查询设备状态失败: ${e.message}"
+        "查询设备状态失败：${e.message}"
     }
 }
 
 private fun processTimeQuery(): String {
     val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-    return "现在是 ${now.year}年${now.monthNumber}月${now.dayOfMonth}日 ${now.hour}:${now.minute.toString().padStart(2, '0')}"
+    return "现在是${now.year}年${now.monthNumber}月${now.dayOfMonth}日 ${now.hour}:${now.minute.toString().padStart(2, '0')}"
 }
 
 private fun processWeatherQuery(): String {

@@ -2,11 +2,11 @@ package ai.koog.cortexclaw.data.cache
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 public class CacheManager<K, V>(
     private val maxSize: Int = 100,
-    private val ttlMillis: Long = 30 * 60 * 1000L // 30 minutes default
+    private val ttlMillis: Long = 30 * 60 * 1000L
 ) {
     private val cache = mutableMapOf<K, CacheEntry<V>>()
     private val mutex = Mutex()

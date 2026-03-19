@@ -1,9 +1,10 @@
 package ai.koog.cortexclaw.profile.prediction
 
 import ai.koog.cortexclaw.profile.model.*
-import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
 
 public class ScenePredictor {
     
@@ -64,7 +65,8 @@ public class ScenePredictor {
     }
 
     private fun inferActivity(context: SceneContext): String {
-        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        val now = Instant.fromEpochMilliseconds(Clock.System.now().toEpochMilliseconds())
+            .toLocalDateTime(TimeZone.currentSystemDefault())
         val hour = now.hour
         
         return when {

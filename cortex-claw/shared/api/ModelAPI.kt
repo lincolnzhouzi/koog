@@ -56,7 +56,7 @@ public class ModelAPIImpl(
 
     override suspend fun unloadModel(modelId: String): Result<Unit> {
         return try {
-            executor?.shutdown()
+            executor?.close()
             executor = null
             currentModel = null
             Result.success(Unit)

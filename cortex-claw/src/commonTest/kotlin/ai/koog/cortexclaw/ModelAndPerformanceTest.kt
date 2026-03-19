@@ -1,5 +1,6 @@
 package ai.koog.cortexclaw
 
+import ai.koog.cortexclaw.core.agent.config.MNNConfig
 import ai.koog.cortexclaw.core.model.*
 import ai.koog.cortexclaw.performance.MemoryManager
 import ai.koog.cortexclaw.performance.PerformanceMonitor
@@ -45,34 +46,24 @@ class ModelAndPerformanceTest {
         val config = MNNConfig(
             numThreads = 4,
             useGPU = true,
-            precision = Precision.FP16,
+            precision = "FP16",
             contextLength = 4096,
             batchSize = 512
         )
         
         assertEquals(4, config.numThreads)
         assertTrue(config.useGPU)
-        assertEquals(Precision.FP16, config.precision)
+        assertEquals("FP16", config.precision)
     }
 
     @Test
     fun testPrecisionTypes() {
         val precisions = Precision.values()
         
-        assertEquals(4, precisions.size)
+        assertEquals(3, precisions.size)
         assertTrue(precisions.contains(Precision.FP32))
         assertTrue(precisions.contains(Precision.FP16))
-        assertTrue(precisions.contains(Precision.BF16))
         assertTrue(precisions.contains(Precision.INT8))
-    }
-
-    @Test
-    fun testQuantizationTypes() {
-        val quantizations = QuantizationType.values()
-        
-        assertTrue(quantizations.contains(QuantizationType.NONE))
-        assertTrue(quantizations.contains(QuantizationType.INT8))
-        assertTrue(quantizations.contains(QuantizationType.INT4))
     }
 
     @Test

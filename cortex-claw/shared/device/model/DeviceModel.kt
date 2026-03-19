@@ -1,7 +1,7 @@
 package ai.koog.cortexclaw.device.model
 
-import kotlinx.datetime.Clock
 import kotlinx.serialization.Serializable
+import kotlin.time.Clock
 
 @Serializable
 public data class Device(

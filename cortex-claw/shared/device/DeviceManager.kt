@@ -6,7 +6,7 @@ import ai.koog.cortexclaw.device.protocol.DeviceProtocolHandler
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 public class DeviceManager private constructor() {
     private val devices = mutableMapOf<String, Device>()

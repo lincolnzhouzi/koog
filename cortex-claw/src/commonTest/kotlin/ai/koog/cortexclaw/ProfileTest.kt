@@ -4,11 +4,11 @@ import ai.koog.cortexclaw.profile.model.*
 import ai.koog.cortexclaw.profile.learning.PreferenceLearner
 import ai.koog.cortexclaw.profile.prediction.ScenePredictor
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Clock
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlin.time.Clock
 
 class ProfileTest {
 

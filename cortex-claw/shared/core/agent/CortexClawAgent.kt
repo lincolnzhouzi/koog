@@ -1,10 +1,5 @@
 package ai.koog.cortexclaw.core.agent
 
-import ai.koog.agents.core.agent.AIAgent
-import ai.koog.agents.core.agent.config.AIAgentConfig
-import ai.koog.agents.core.dsl.builder.forwardTo
-import ai.koog.agents.core.dsl.builder.strategy
-import ai.koog.agents.core.dsl.extension.nodeLLM
 import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.cortexclaw.core.agent.config.AgentConfig
 import ai.koog.cortexclaw.core.agent.context.AgentContext
@@ -14,16 +9,31 @@ import ai.koog.cortexclaw.core.agent.node.*
 import ai.koog.cortexclaw.core.agent.strategy.*
 import ai.koog.cortexclaw.device.DeviceManager
 import ai.koog.cortexclaw.profile.UserProfileManager
-import ai.koog.prompt.executor.PromptExecutor
-import ai.koog.prompt.model.Prompt
+import ai.koog.prompt.dsl.prompt
+import ai.koog.prompt.executor.model.PromptExecutor
+import ai.koog.prompt.llm.LLMProvider
+import ai.koog.prompt.llm.LLModel
+import ai.koog.prompt.streaming.StreamFrame
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+
+@Serializable
+public class MNNLLMProvider : LLMProvider("mnn", "MNN")
+
+@Serializable
+private data class IntentResult(
+    val intent: String,
+    val entities: Map<String, String> = emptyMap(),
+    val confidence: Float = 0.0f
+)
 
 public class CortexClawAgent(
     private val promptExecutor: PromptExecutor,
@@ -43,6 +53,12 @@ public class CortexClawAgent(
     private val moodComfortStrategy = MoodComfortStrategy()
     private val sceneExecutionStrategy = SceneExecutionStrategy()
     private val queryResponseStrategy = QueryResponseStrategy()
+
+    private val model: LLModel = LLModel(
+        provider = MNNLLMProvider(),
+        id = config.modelId,
+        contextLength = config.mnn.contextLength.toLong()
+    )
 
     public suspend fun initialize(): Result<Unit> {
         return try {
@@ -125,13 +141,17 @@ public class CortexClawAgent(
         try {
             val intent = analyzeIntent(input, context)
             
-            val prompt = Prompt.build {
+            val prompt = prompt("streaming-request") {
                 system(buildSystemPrompt(intent.type))
                 user(input)
             }
             
-            promptExecutor.executeStreaming(prompt).collect { chunk ->
-                emit(chunk)
+            promptExecutor.executeStreaming(prompt, model).collect { frame ->
+                when (frame) {
+                    is StreamFrame.TextDelta -> emit(frame.text)
+                    is StreamFrame.TextComplete -> emit(frame.text)
+                    else -> {}
+                }
             }
             
             _status.value = AgentStatus.Ready
@@ -162,25 +182,25 @@ public class CortexClawAgent(
 
     private suspend fun analyzeIntent(input: String, context: AgentContext): ai.koog.cortexclaw.core.agent.context.IntentInfo {
         val systemPrompt = """
-            分析用户意图。返回JSON格式：
-            {"intent": "DEVICE_CONTROL|QUERY|SCENE_EXECUTION|MOOD_COMFORT|UNKNOWN", "entities": {}, "confidence": 0.0-1.0}
+            分析用户意图。返回JSON格式�?            {"intent": "DEVICE_CONTROL|QUERY|SCENE_EXECUTION|MOOD_COMFORT|UNKNOWN", "entities": {}, "confidence": 0.0-1.0}
         """.trimIndent()
         
-        val analysisPrompt = Prompt.build {
+        val analysisPrompt = prompt("intent-analysis") {
             system(systemPrompt)
             user(input)
         }
         
-        val response = promptExecutor.execute(analysisPrompt)
+        val response = promptExecutor.execute(analysisPrompt, model)
+        val responseText = response.firstOrNull()?.content ?: ""
         
-        return parseIntentFromResponse(response, input).also {
+        return parseIntentFromResponse(responseText, input).also {
             context.setCurrentIntent(it)
         }
     }
 
     private fun parseIntentFromResponse(response: String, rawInput: String): ai.koog.cortexclaw.core.agent.context.IntentInfo {
         return try {
-            val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+            val json = Json { ignoreUnknownKeys = true }
             val result = json.decodeFromString<IntentResult>(response)
             
             ai.koog.cortexclaw.core.agent.context.IntentInfo(
@@ -203,82 +223,63 @@ public class CortexClawAgent(
     }
 
     private suspend fun executeDeviceControl(input: String, context: AgentContext): String {
-        val prompt = Prompt.build {
+        val prompt = prompt("device-control") {
             system(buildSystemPrompt(IntentType.DEVICE_CONTROL))
             user(input)
         }
-        return promptExecutor.execute(prompt)
+        return promptExecutor.execute(prompt, model).firstOrNull()?.content ?: ""
     }
 
     private suspend fun executeQuery(input: String, context: AgentContext): String {
-        val prompt = Prompt.build {
+        val prompt = prompt("query") {
             system(buildSystemPrompt(IntentType.QUERY))
             user(input)
         }
-        return promptExecutor.execute(prompt)
+        return promptExecutor.execute(prompt, model).firstOrNull()?.content ?: ""
     }
 
     private suspend fun executeScene(input: String, context: AgentContext): String {
-        val prompt = Prompt.build {
+        val prompt = prompt("scene") {
             system(buildSystemPrompt(IntentType.SCENE_EXECUTION))
             user(input)
         }
-        return promptExecutor.execute(prompt)
+        return promptExecutor.execute(prompt, model).firstOrNull()?.content ?: ""
     }
 
     private suspend fun executeMoodComfort(input: String, context: AgentContext): String {
-        val prompt = Prompt.build {
+        val prompt = prompt("mood-comfort") {
             system(buildSystemPrompt(IntentType.MOOD_COMFORT))
             user(input)
         }
-        return promptExecutor.execute(prompt)
+        return promptExecutor.execute(prompt, model).firstOrNull()?.content ?: ""
     }
 
     private suspend fun handleUnknown(input: String, context: AgentContext): String {
-        val prompt = Prompt.build {
+        val prompt = prompt("unknown") {
             system("""
-                你是一个智能家居助手。用户的问题可能超出了你的能力范围。
-                请友好地说明你能做什么：
-                1. 控制智能设备（空调、灯光、电视等）
-                2. 查询设备状态
-                3. 执行预设场景（回家模式、睡眠模式等）
-                4. 提供情绪支持和建议
-            """.trimIndent())
+                你是一个智能家居助手。用户的问题可能超出了你的能力范围�?                请友好地说明你能做什么：
+                1. 控制智能设备（空调、灯光、电视等�?                2. 查询设备状�?                3. 执行预设场景（回家模式、睡眠模式等�?                4. 提供情绪支持和建�?            """.trimIndent())
             user(input)
         }
-        return promptExecutor.execute(prompt)
+        return promptExecutor.execute(prompt, model).firstOrNull()?.content ?: ""
     }
 
     private fun buildSystemPrompt(intentType: IntentType): String {
         return when (intentType) {
             IntentType.DEVICE_CONTROL -> """
-                你是一个智能家居控制助手。帮助用户控制智能设备。
-                支持的设备：空调、灯光、电视、窗帘、加湿器等。
-                用简洁友好的中文回复。
-            """.trimIndent()
+                你是一个智能家居控制助手。帮助用户控制智能设备�?                支持的设备：空调、灯光、电视、窗帘、加湿器等�?                用简洁友好的中文回复�?            """.trimIndent()
             
             IntentType.QUERY -> """
-                你是一个智能家居查询助手。帮助用户查询设备状态和基本信息。
-                可以查询：设备状态、当前时间等。
-                用简洁友好的中文回复。
-            """.trimIndent()
+                你是一个智能家居查询助手。帮助用户查询设备状态和基本信息�?                可以查询：设备状态、当前时间等�?                用简洁友好的中文回复�?            """.trimIndent()
             
             IntentType.SCENE_EXECUTION -> """
-                你是一个智能家居场景助手。帮助用户执行预设场景。
-                支持的场景：回家模式、离家模式、睡眠模式、观影模式、工作模式。
-                用简洁友好的中文回复。
-            """.trimIndent()
+                你是一个智能家居场景助手。帮助用户执行预设场景�?                支持的场景：回家模式、离家模式、睡眠模式、观影模式、工作模式�?                用简洁友好的中文回复�?            """.trimIndent()
             
             IntentType.MOOD_COMFORT -> """
-                你是一个温暖的智能家居助手。感知用户情绪并提供安慰和建议。
-                可以根据情绪建议调整家居环境（如调暗灯光、播放舒缓音乐）。
-                用温暖关怀的语气回复。
-            """.trimIndent()
+                你是一个温暖的智能家居助手。感知用户情绪并提供安慰和建议�?                可以根据情绪建议调整家居环境（如调暗灯光、播放舒缓音乐）�?                用温暖关怀的语气回复�?            """.trimIndent()
             
             IntentType.UNKNOWN -> """
-                你是一个智能家居助手。帮助用户控制智能设备和查询信息。
-                用简洁友好的中文回复。
-            """.trimIndent()
+                你是一个智能家居助手。帮助用户控制智能设备和查询信息�?                用简洁友好的中文回复�?            """.trimIndent()
         }
     }
 
@@ -298,33 +299,24 @@ public class CortexClawAgent(
             ai.koog.cortexclaw.core.agent.context.EmotionState.Happy -> ai.koog.cortexclaw.profile.model.EmotionType.HAPPY
             ai.koog.cortexclaw.core.agent.context.EmotionState.Sad -> ai.koog.cortexclaw.profile.model.EmotionType.SAD
             ai.koog.cortexclaw.core.agent.context.EmotionState.Angry -> ai.koog.cortexclaw.profile.model.EmotionType.ANGRY
-            ai.koog.cortexclaw.core.agent.context.EmotionState.Neutral -> ai.koog.cortexclaw.profile.model.EmotionType.NEUTRAL
+            ai.koog.cortexclaw.core.agent.context.EmotionState.Neutral -> null
             ai.koog.cortexclaw.core.agent.context.EmotionState.Tired -> ai.koog.cortexclaw.profile.model.EmotionType.TIRED
             ai.koog.cortexclaw.core.agent.context.EmotionState.Excited -> ai.koog.cortexclaw.profile.model.EmotionType.EXCITED
         }
     }
-
-    @kotlinx.serialization.Serializable
-    private data class IntentResult(
-        val intent: String,
-        val entities: Map<String, String> = emptyMap(),
-        val confidence: Float = 0.0f
-    )
 }
 
 public sealed class AgentStatus {
-    public data object Idle : AgentStatus()
-    public data object Initializing : AgentStatus()
-    public data object Ready : AgentStatus()
-    public data object Processing : AgentStatus()
-    public data object ShuttingDown : AgentStatus()
+    public object Idle : AgentStatus()
+    public object Initializing : AgentStatus()
+    public object Ready : AgentStatus()
+    public object Processing : AgentStatus()
+    public object ShuttingDown : AgentStatus()
     public data class Error(val message: String) : AgentStatus()
 }
 
 public sealed class AgentResponse {
     public data class Text(val content: String) : AgentResponse()
-    public data class Streaming(val chunk: String) : AgentResponse()
-    public data class Action(val action: ai.koog.cortexclaw.device.model.DeviceAction) : AgentResponse()
-    public data class Question(val prompt: String, val options: List<String>) : AgentResponse()
     public data class Error(val message: String) : AgentResponse()
+    public data class DeviceAction(val deviceId: String, val action: String, val parameters: Map<String, String>) : AgentResponse()
 }

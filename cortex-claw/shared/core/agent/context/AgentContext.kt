@@ -5,7 +5,7 @@ import ai.koog.cortexclaw.profile.model.UserProfile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 public data class AgentContext(
     val sessionId: String,
@@ -47,7 +47,7 @@ public data class ConversationMessage(
     val role: MessageRole,
     val content: String,
     val timestamp: Long = Clock.System.now().toEpochMilliseconds(),
-    val metadata: Map<String, Any> = emptyMap()
+    val metadata: Map<String, String> = emptyMap()
 )
 
 public enum class MessageRole {

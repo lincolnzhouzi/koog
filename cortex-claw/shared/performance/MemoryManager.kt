@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 public class MemoryManager {
     
@@ -57,10 +57,10 @@ public class MemoryManager {
         val availableGB = (info.maxMemory - info.usedMemory) / (1024 * 1024 * 1024)
         
         return when {
-            availableGB >= 6 -> 3 // 3B model
-            availableGB >= 3 -> 1 // 1B model
-            availableGB >= 1 -> 0 // 0.5B model
-            else -> -1 // Not enough memory
+            availableGB >= 6 -> 3
+            availableGB >= 3 -> 1
+            availableGB >= 1 -> 0
+            else -> -1
         }
     }
 
@@ -160,7 +160,7 @@ public class PerformanceMonitor {
         
         _averageResponseTime.value = metrics.map { it.durationMs }.average().toLong()
         
-        val timeWindow = 60_000L // 1 minute
+        val timeWindow = 60_000L
         val now = Clock.System.now().toEpochMilliseconds()
         val recentMetrics = metrics.filter { now - it.timestamp < timeWindow }
         _throughput.value = recentMetrics.size / 60.0

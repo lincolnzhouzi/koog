@@ -2,24 +2,23 @@ package ai.koog.cortexclaw.core.agent.context
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.util.UUID
-import kotlin.concurrent.atomics.AtomicInt
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.time.Clock
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 public class SessionManager {
     private val sessions = mutableMapOf<String, AgentContext>()
     private val mutex = Mutex()
-    
-    @OptIn(ExperimentalAtomicApi::class)
-    private val activeSessionCount = AtomicInt(0)
+    private var activeSessionCount = 0
 
+    @OptIn(ExperimentalUuidApi::class)
     public suspend fun createSession(config: ai.koog.cortexclaw.core.agent.config.AgentConfig): AgentContext {
-        val sessionId = UUID.randomUUID().toString()
+        val sessionId = Uuid.random().toString()
         val context = AgentContext(sessionId = sessionId, config = config)
         
         mutex.withLock {
             sessions[sessionId] = context
-            activeSessionCount.incrementAndGet()
+            activeSessionCount++
         }
         
         return context
@@ -35,7 +34,7 @@ public class SessionManager {
         return mutex.withLock {
             val removed = sessions.remove(sessionId) != null
             if (removed) {
-                activeSessionCount.decrementAndGet()
+                activeSessionCount--
             }
             removed
         }
@@ -47,13 +46,12 @@ public class SessionManager {
         }
     }
 
-    @OptIn(ExperimentalAtomicApi::class)
-    public fun getActiveSessionCount(): Int = activeSessionCount.load()
+    public fun getActiveSessionCount(): Int = activeSessionCount
 
     public suspend fun clearAllSessions() {
         mutex.withLock {
             sessions.clear()
-            activeSessionCount.store(0)
+            activeSessionCount = 0
         }
     }
 }

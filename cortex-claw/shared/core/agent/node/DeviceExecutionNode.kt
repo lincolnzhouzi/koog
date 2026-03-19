@@ -1,26 +1,15 @@
 package ai.koog.cortexclaw.core.agent.node
 
-import ai.koog.agents.core.dsl.builder.NodeBuilder
-import ai.koog.agents.core.dsl.builder.node
+import ai.koog.agents.core.dsl.builder.AIAgentNodeDelegate
+import ai.koog.agents.core.dsl.builder.AIAgentSubgraphBuilderBase
 import ai.koog.cortexclaw.core.agent.context.AgentContext
 import ai.koog.cortexclaw.device.DeviceManager
 import ai.koog.cortexclaw.device.model.DeviceAction
-import ai.koog.prompt.model.Prompt
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.Serializable
 
-@Serializable
-private data class DeviceCommand(
-    val deviceId: String? = null,
-    val deviceName: String? = null,
-    val action: String,
-    val value: Any? = null
-)
-
-public fun NodeBuilder<String>.nodeDeviceExecution(
+public fun AIAgentSubgraphBuilderBase<*, *>.nodeDeviceExecution(
     name: String,
     context: AgentContext
-) = node(name) { input ->
+): AIAgentNodeDelegate<String, String> = node(name) { input ->
     val currentIntent = context.currentIntent.value
     
     if (currentIntent == null) {
@@ -33,7 +22,7 @@ public fun NodeBuilder<String>.nodeDeviceExecution(
     val value = entities["value"]
     
     try {
-        val deviceManager = getDeviceManager()
+        val deviceManager = DeviceManager.getInstance()
         val device = deviceManager.findDeviceByName(deviceName)
         
         if (device == null) {
@@ -56,8 +45,4 @@ public fun NodeBuilder<String>.nodeDeviceExecution(
     } catch (e: Exception) {
         "ERROR: ${e.message}"
     }
-}
-
-private suspend fun getDeviceManager(): DeviceManager {
-    return DeviceManager.getInstance()
 }

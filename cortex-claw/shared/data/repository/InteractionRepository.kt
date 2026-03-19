@@ -3,7 +3,7 @@ package ai.koog.cortexclaw.data.repository
 import ai.koog.cortexclaw.data.database.DatabaseService
 import ai.koog.cortexclaw.profile.model.*
 import kotlinx.coroutines.flow.*
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 public class InteractionRepository(private val database: DatabaseService) {
     

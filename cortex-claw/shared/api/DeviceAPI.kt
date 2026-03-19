@@ -18,13 +18,13 @@ public interface DeviceAPI {
 public data class ControlRequest(
     val deviceId: String,
     val action: String,
-    val parameters: Map<String, Any> = emptyMap()
+    val parameters: Map<String, String> = emptyMap()
 )
 
 public data class ControlResult(
     val success: Boolean,
     val message: String?,
-    val data: Map<String, Any>?
+    val data: Map<String, String>?
 )
 
 public class DeviceAPIImpl(

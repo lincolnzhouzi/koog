@@ -3,7 +3,7 @@ package ai.koog.cortexclaw.security
 import ai.koog.cortexclaw.profile.model.PrivacyPreference
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 public class PrivacyManager(
     private val privacyPreference: PrivacyPreference = PrivacyPreference()
@@ -29,16 +29,16 @@ public class PrivacyManager(
         return mutex.withLock {
             var filtered = data
             
-            val phonePattern = Regex("\\b1[3-9]\\d{9}\\b")
+            val phonePattern = Regex("1[3-9]\\d{9}")
             filtered = filtered.replace(phonePattern, "***-****-****")
             
-            val emailPattern = Regex("\\b[\\w.-]+@[\\w.-]+\\.\\w+\\b")
+            val emailPattern = Regex("[\\w.-]+@[\\w.-]+\\.\\w+")
             filtered = filtered.replace(emailPattern, "***@***.***")
             
-            val idCardPattern = Regex("\\b\\d{17}[\\dXx]\\b")
+            val idCardPattern = Regex("\\d{17}[\\dXx]")
             filtered = filtered.replace(idCardPattern, "******************")
             
-            val bankCardPattern = Regex("\\b\\d{16,19}\\b")
+            val bankCardPattern = Regex("\\d{16,19}")
             filtered = filtered.replace(bankCardPattern, "****************")
             
             filtered

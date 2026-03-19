@@ -5,7 +5,7 @@ import ai.koog.cortexclaw.core.agent.AgentStatus
 import ai.koog.cortexclaw.core.agent.AgentResponse
 import ai.koog.cortexclaw.core.agent.config.AgentConfig
 import kotlinx.coroutines.flow.Flow
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 public interface AgentAPI {
     public suspend fun initialize(config: AgentConfig): Result<Unit>
@@ -18,7 +18,7 @@ public interface AgentAPI {
 public data class UserInput(
     val content: String,
     val type: InputType,
-    val metadata: Map<String, Any> = emptyMap()
+    val metadata: Map<String, String> = emptyMap()
 )
 
 public enum class InputType {

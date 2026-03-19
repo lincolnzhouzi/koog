@@ -1,13 +1,18 @@
 package ai.koog.cortexclaw.performance
 
+import ai.koog.cortexclaw.core.agent.config.MNNConfig
 import ai.koog.cortexclaw.core.model.*
-import ai.koog.prompt.model.Prompt
-import ai.koog.prompt.model.Message
+import ai.koog.prompt.dsl.Prompt
+import ai.koog.prompt.dsl.prompt
+import ai.koog.prompt.message.Message
+import ai.koog.prompt.message.RequestMetaInfo
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
+import kotlin.time.Instant
+
 
 public class OptimizedInference(
     private val config: MNNConfig,
@@ -86,18 +91,16 @@ public class OptimizedInference(
     }
 
     public suspend fun inferText(text: String): String {
-        val prompt = Prompt(
-            messages = listOf(Message.user(text)),
-            id = "temp-${Clock.System.now().toEpochMilliseconds()}"
-        )
+        val prompt = prompt("temp-${Clock.System.now().toEpochMilliseconds()}") {
+            user(text)
+        }
         return infer(prompt)
     }
 
     public fun inferTextStreaming(text: String): Flow<String> {
-        val prompt = Prompt(
-            messages = listOf(Message.user(text)),
-            id = "temp-${Clock.System.now().toEpochMilliseconds()}"
-        )
+        val prompt = prompt("temp-${Clock.System.now().toEpochMilliseconds()}") {
+            user(text)
+        }
         return inferStreaming(prompt)
     }
 
@@ -175,7 +178,7 @@ public class InferenceOptimizer {
     }
 
     public fun estimateMemoryRequirement(modelParams: Int, contextLength: Int): Long {
-        val paramMemory = modelParams * 2L // FP16
+        val paramMemory = modelParams * 2L
         val contextMemory = contextLength * 1024L
         
         return paramMemory + contextMemory

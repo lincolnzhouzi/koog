@@ -91,7 +91,7 @@ class DeviceManagerTest {
         val action = DeviceAction(
             deviceId = "device-001",
             action = "setTemperature",
-            parameters = mapOf("value" to 24)
+            parameters = mapOf("value" to "24")
         )
         
         assertEquals("device-001", action.deviceId)
@@ -104,7 +104,7 @@ class DeviceManagerTest {
         val successResult = DeviceActionResult(
             success = true,
             message = "Action executed successfully",
-            data = mapOf("temperature" to 24)
+            data = mapOf("temperature" to "24")
         )
         
         assertTrue(successResult.success)

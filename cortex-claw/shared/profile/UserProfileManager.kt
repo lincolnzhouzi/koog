@@ -6,9 +6,10 @@ import ai.koog.cortexclaw.profile.learning.HabitAnalyzer
 import ai.koog.cortexclaw.profile.prediction.ScenePredictor
 import ai.koog.cortexclaw.profile.storage.ProfileRepository
 import kotlinx.coroutines.flow.*
-import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
 
 public class UserProfileManager(
     private val profileRepository: ProfileRepository = ProfileRepository(),
@@ -124,7 +125,8 @@ public class UserProfileManager(
     private fun generateRecommendations(profile: UserProfile, context: RecommendationContext): List<Recommendation> {
         val recommendations = mutableListOf<Recommendation>()
         
-        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        val now = Instant.fromEpochMilliseconds(Clock.System.now().toEpochMilliseconds())
+            .toLocalDateTime(TimeZone.currentSystemDefault())
         val hour = now.hour
         val preferences = profile.preferences
         
@@ -148,7 +150,7 @@ public class UserProfileManager(
                     type = RecommendationType.SCENE_SUGGESTION,
                     title = "睡眠场景",
                     description = "准备睡眠环境",
-                    action = PredictedAction("场景", "sleep", null),
+                    action = PredictedAction("场景", "sleep"),
                     priority = 2
                 )
             )
@@ -160,7 +162,7 @@ public class UserProfileManager(
                     type = RecommendationType.SCENE_SUGGESTION,
                     title = "起床场景",
                     description = "开启早晨模式",
-                    action = PredictedAction("场景", "wakeUp", null),
+                    action = PredictedAction("场景", "wakeUp"),
                     priority = 2
                 )
             )

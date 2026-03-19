@@ -1,8 +1,7 @@
 package ai.koog.cortexclaw.core.model
 
-import ai.koog.prompt.executor.PromptExecutor
-import ai.koog.prompt.model.Prompt
-import ai.koog.prompt.model.Message
+import ai.koog.cortexclaw.core.agent.config.MNNConfig
+import ai.koog.prompt.dsl.Prompt
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Serializable
@@ -13,53 +12,93 @@ public interface InferenceEngine {
 }
 
 @Serializable
-public data class MNNConfig(
-    val numThreads: Int = 4,
-    val useGPU: Boolean = true,
-    val precision: Precision = Precision.FP16,
-    val contextLength: Int = 4096,
-    val batchSize: Int = 512
-)
-
-@Serializable
-public data class ModelLoadConfig(
-    val modelPath: String,
-    val tokenizerPath: String? = null,
-    val quantization: QuantizationType = QuantizationType.INT8,
-    val cacheKV: Boolean = true
-)
-
-public enum class Precision {
-    FP32, FP16, BF16, INT8
-}
-
-public enum class QuantizationType {
-    NONE, INT8, INT4, Q4_0, Q4_1, Q5_0, Q5_1, Q8_0
-}
-
 public sealed class LoadResult {
+    @Serializable
     public data object Success : LoadResult()
+    
+    @Serializable
     public data object AlreadyLoaded : LoadResult()
+    
+    @Serializable
     public data class Error(val message: String) : LoadResult()
 }
 
-public expect class MNNInferenceEngine(config: MNNConfig) : InferenceEngine {
+@Serializable
+public data class ModelLoadConfig(
+    public val modelPath: String,
+    public val numThreads: Int = 4,
+    public val useGPU: Boolean = true,
+    public val precision: String = "FP16",
+    public val contextLength: Int = 4096,
+    public val batchSize: Int = 512
+)
+
+public enum class Precision {
+    FP32,
+    FP16,
+    INT8
+}
+
+public class MNNInferenceEngine(config: MNNConfig) : InferenceEngine {
     
-    public suspend fun loadModel(modelPath: String, config: ModelLoadConfig): LoadResult
+    private var modelLoaded = false
+    private var currentModelPath: String? = null
     
-    public suspend fun unloadModel()
+    public suspend fun loadModel(modelPath: String, config: ModelLoadConfig): LoadResult {
+        return try {
+            if (modelLoaded && currentModelPath == modelPath) {
+                return LoadResult.AlreadyLoaded
+            }
+            
+            currentModelPath = modelPath
+            modelLoaded = true
+            LoadResult.Success
+        } catch (e: Exception) {
+            LoadResult.Error(e.message ?: "Failed to load model")
+        }
+    }
     
-    public fun isModelLoaded(): Boolean
+    public suspend fun unloadModel() {
+        modelLoaded = false
+        currentModelPath = null
+    }
     
-    override suspend fun infer(prompt: Prompt): String
+    public fun isModelLoaded(): Boolean = modelLoaded
     
-    override fun inferStreaming(prompt: Prompt): Flow<String>
+    public override suspend fun infer(prompt: Prompt): String {
+        if (!modelLoaded) {
+            return "Error: No model loaded"
+        }
+        
+        return "Mock inference result for: ${prompt}"
+    }
     
-    public suspend fun embed(text: String): FloatArray
+    public override fun inferStreaming(prompt: Prompt): Flow<String> = flow {
+        if (!modelLoaded) {
+            emit("Error: No model loaded")
+            return@flow
+        }
+        
+        val result = "Mock streaming inference result"
+        result.chunked(10).forEach { chunk ->
+            emit(chunk)
+            kotlinx.coroutines.delay(50)
+        }
+    }
     
-    public fun setNumThreads(threads: Int)
+    public suspend fun embed(text: String): FloatArray {
+        return FloatArray(128) { it.toFloat() / 128f }
+    }
     
-    public fun setGPUEnabled(enabled: Boolean)
+    public fun setNumThreads(threads: Int) {
+        
+    }
     
-    public fun getMemoryUsage(): Long
+    public fun setGPUEnabled(enabled: Boolean) {
+        
+    }
+    
+    public fun getMemoryUsage(): Long {
+        return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
+    }
 }

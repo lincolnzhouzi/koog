@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 public class MainViewModel : ViewModel() {
     
@@ -61,10 +61,6 @@ public class MainViewModel : ViewModel() {
                     when (response) {
                         is AgentResponse.Text -> {
                             responseBuilder.append(response.content)
-                            updateMessage(responseId, responseBuilder.toString())
-                        }
-                        is AgentResponse.Streaming -> {
-                            responseBuilder.append(response.chunk)
                             updateMessage(responseId, responseBuilder.toString())
                         }
                         is AgentResponse.Error -> {

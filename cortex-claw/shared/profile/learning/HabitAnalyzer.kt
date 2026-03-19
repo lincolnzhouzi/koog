@@ -1,11 +1,11 @@
 package ai.koog.cortexclaw.profile.learning
 
 import ai.koog.cortexclaw.profile.model.*
-import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.random.Random
+import kotlin.time.Clock
 
 public class HabitAnalyzer {
     

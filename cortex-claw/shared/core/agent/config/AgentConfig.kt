@@ -3,22 +3,22 @@ package ai.koog.cortexclaw.core.agent.config
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class AgentConfig(
-    val modelId: String = "qwen-2.5-3b",
-    val maxIterations: Int = 10,
-    val enableTracing: Boolean = true,
-    val enableMemory: Boolean = true,
-    val language: String = "zh-CN",
-    val mnn: MNNConfig = MNNConfig()
+public data class AgentConfig(
+    public val modelId: String = "qwen-2.5-3b",
+    public val maxIterations: Int = 10,
+    public val enableTracing: Boolean = true,
+    public val enableMemory: Boolean = true,
+    public val language: String = "zh-CN",
+    public val mnn: MNNConfig = MNNConfig()
 )
 
 @Serializable
-data class MNNConfig(
-    val numThreads: Int = 4,
-    val useGPU: Boolean = true,
-    val precision: String = "FP16",
-    val contextLength: Int = 4096,
-    val batchSize: Int = 512
+public data class MNNConfig(
+    public val numThreads: Int = 4,
+    public val useGPU: Boolean = true,
+    public val precision: String = "FP16",
+    public val contextLength: Int = 4096,
+    public val batchSize: Int = 512
 )
 
 public object AgentDefaults {

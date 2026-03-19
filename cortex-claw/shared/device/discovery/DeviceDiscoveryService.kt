@@ -4,7 +4,7 @@ import ai.koog.cortexclaw.device.model.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.delay
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 public class DeviceDiscoveryService {
     

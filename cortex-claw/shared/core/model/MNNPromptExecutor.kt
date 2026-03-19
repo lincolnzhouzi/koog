@@ -1,16 +1,25 @@
 package ai.koog.cortexclaw.core.model
 
-import ai.koog.prompt.executor.PromptExecutor
-import ai.koog.prompt.model.Prompt
-import ai.koog.prompt.model.Message
+import ai.koog.agents.core.tools.ToolDescriptor
+import ai.koog.cortexclaw.core.agent.config.MNNConfig
+import ai.koog.prompt.dsl.ModerationResult
+import ai.koog.prompt.dsl.Prompt
+import ai.koog.prompt.executor.model.PromptExecutor
+import ai.koog.prompt.executor.model.PromptExecutorAPI
+import ai.koog.prompt.llm.LLModel
+import ai.koog.prompt.message.Message
+import ai.koog.prompt.message.ResponseMetaInfo
+import ai.koog.prompt.streaming.StreamFrame
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlin.time.Clock
 
 public class MNNPromptExecutor(
     private val config: MNNConfig = MNNConfig()
-) : PromptExecutor {
+) : PromptExecutor(), PromptExecutorAPI {
     
     private var engine: MNNInferenceEngine? = null
     private var isInitialized = false
@@ -28,18 +37,36 @@ public class MNNPromptExecutor(
         }
     }
 
-    override suspend fun execute(prompt: Prompt): String {
+    override suspend fun execute(
+        prompt: Prompt,
+        model: LLModel,
+        tools: List<ToolDescriptor>
+    ): List<Message.Response> {
         ensureInitialized()
-        return engine!!.infer(prompt)
+        val response = engine!!.infer(prompt)
+        return listOf(
+            Message.Assistant(
+                content = response,
+                metaInfo = ResponseMetaInfo.create(Clock.System)
+            )
+        )
     }
 
-    override fun executeStreaming(prompt: Prompt): Flow<String> {
+    override fun executeStreaming(
+        prompt: Prompt,
+        model: LLModel,
+        tools: List<ToolDescriptor>
+    ): Flow<StreamFrame> {
         return flow {
             ensureInitialized()
             engine!!.inferStreaming(prompt).collect { chunk ->
-                emit(chunk)
+                emit(StreamFrame.TextDelta(chunk))
             }
         }
+    }
+
+    override suspend fun moderate(prompt: Prompt, model: LLModel): ModerationResult {
+        return ModerationResult(isHarmful = false, categories = emptyMap())
     }
 
     public suspend fun embed(text: String): FloatArray {
@@ -63,10 +90,14 @@ public class MNNPromptExecutor(
         return engine?.isModelLoaded() ?: false
     }
 
-    public suspend fun shutdown() {
-        engine?.unloadModel()
-        engine = null
-        isInitialized = false
+    override fun close() {
+        engine?.let {
+            runBlocking {
+                it.unloadModel()
+            }
+            engine = null
+            isInitialized = false
+        }
     }
 
     private fun ensureInitialized() {

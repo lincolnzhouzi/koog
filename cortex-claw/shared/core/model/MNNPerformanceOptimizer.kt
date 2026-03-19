@@ -1,5 +1,6 @@
 package ai.koog.cortexclaw.core.model
 
+import ai.koog.cortexclaw.core.agent.config.MNNConfig
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Serializable
@@ -24,9 +25,9 @@ public class MNNPerformanceOptimizer {
             },
             useGPU = deviceInfo.hasGPU && deviceInfo.gpuMemoryMB >= 1024,
             precision = when {
-                deviceInfo.supportsFP16 -> Precision.FP16
-                deviceInfo.supportsINT8 -> Precision.INT8
-                else -> Precision.FP32
+                deviceInfo.supportsFP16 -> "FP16"
+                deviceInfo.supportsINT8 -> "INT8"
+                else -> "FP32"
             },
             contextLength = when {
                 deviceInfo.totalMemoryMB >= 8192 -> 8192

@@ -1,7 +1,7 @@
 package ai.koog.cortexclaw.profile.learning
 
 import ai.koog.cortexclaw.profile.model.*
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 public class PreferenceLearner {
     
@@ -57,7 +57,7 @@ public class PreferenceLearner {
             }
         
         if (brightnessInteractions.size >= 3) {
-            val avgBrightness = brightnessInteractions.average().toInt()
+            val avgBrightness = brightnessInteractions.map { it!! }.average().toInt()
             val nightBrightness = (avgBrightness * 0.4).toInt()
             return Pair(avgBrightness, nightBrightness)
         }
@@ -74,7 +74,7 @@ public class PreferenceLearner {
             }
         
         if (volumeInteractions.size >= 2) {
-            return volumeInteractions.average().toInt()
+            return volumeInteractions.map { it!! }.average().toInt()
         }
         
         return null

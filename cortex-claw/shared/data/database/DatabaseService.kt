@@ -4,19 +4,12 @@ import ai.koog.cortexclaw.device.model.*
 import ai.koog.cortexclaw.profile.model.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 public class DatabaseService {
     
     private val mutex = Mutex()
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-        prettyPrint = false
-    }
-    
     private val devicesTable = mutableMapOf<String, DeviceRecord>()
     private val profilesTable = mutableMapOf<String, ProfileRecord>()
     private val interactionsTable = mutableListOf<InteractionRecord>()
@@ -24,11 +17,9 @@ public class DatabaseService {
 
     public suspend fun initialize() {
         mutex.withLock {
-            // Database initialized
         }
     }
 
-    // Device operations
     public suspend fun insertDevice(device: Device) {
         mutex.withLock {
             devicesTable[device.id] = DeviceRecord(
@@ -36,7 +27,7 @@ public class DatabaseService {
                 name = device.name,
                 type = device.type.name,
                 protocol = device.protocol.name,
-                state = json.encodeToString(device.state),
+                state = Json.encodeToString(device.state),
                 capabilities = device.capabilities.map { it.name },
                 metadata = device.metadata,
                 createdAt = device.createdAt,
@@ -67,13 +58,12 @@ public class DatabaseService {
         }
     }
 
-    // Profile operations
     public suspend fun insertProfile(profile: UserProfile) {
         mutex.withLock {
             profilesTable[profile.id] = ProfileRecord(
                 id = profile.id,
-                preferences = json.encodeToString(profile.preferences),
-                habits = json.encodeToString(profile.habits),
+                preferences = Json.encodeToString(profile.preferences),
+                habits = Json.encodeToString(profile.habits),
                 createdAt = profile.createdAt,
                 updatedAt = profile.lastUpdated
             )
@@ -96,7 +86,6 @@ public class DatabaseService {
         }
     }
 
-    // Interaction operations
     public suspend fun insertInteraction(interaction: UserInteraction) {
         mutex.withLock {
             interactionsTable.add(InteractionRecord(
@@ -109,8 +98,8 @@ public class DatabaseService {
                 devices = interaction.devices,
                 actions = interaction.actions,
                 emotion = interaction.emotion?.name,
-                feedback = interaction.feedback?.let { json.encodeToString(it) },
-                context = json.encodeToString(interaction.context)
+                feedback = interaction.feedback?.let { Json.encodeToString(it) },
+                context = Json.encodeToString(interaction.context)
             ))
         }
     }
@@ -128,7 +117,6 @@ public class DatabaseService {
         }
     }
 
-    // Scene operations
     public suspend fun insertScene(scene: SceneRecord) {
         mutex.withLock {
             scenesTable[scene.id] = scene
@@ -153,7 +141,6 @@ public class DatabaseService {
         }
     }
 
-    // Utility operations
     public suspend fun clearAllData() {
         mutex.withLock {
             devicesTable.clear()
@@ -174,7 +161,6 @@ public class DatabaseService {
         }
     }
 
-    // Record classes
     @kotlinx.serialization.Serializable
     public data class DeviceRecord(
         val id: String,
@@ -193,7 +179,7 @@ public class DatabaseService {
                 name = name,
                 type = DeviceType.valueOf(type),
                 protocol = DeviceProtocol.valueOf(protocol),
-                state = json.decodeFromString(state),
+                state = Json.decodeFromString(state),
                 capabilities = capabilities.map { DeviceCapability.valueOf(it) },
                 metadata = metadata,
                 createdAt = createdAt,
@@ -213,8 +199,8 @@ public class DatabaseService {
         public fun toUserProfile(): UserProfile {
             return UserProfile(
                 id = id,
-                preferences = json.decodeFromString(preferences),
-                habits = json.decodeFromString(habits),
+                preferences = Json.decodeFromString(preferences),
+                habits = Json.decodeFromString(habits),
                 createdAt = createdAt,
                 lastUpdated = updatedAt
             )
@@ -244,8 +230,8 @@ public class DatabaseService {
                 devices = devices,
                 actions = actions,
                 emotion = emotion?.let { EmotionType.valueOf(it) },
-                feedback = feedback?.let { json.decodeFromString(it) },
-                context = json.decodeFromString(context)
+                feedback = feedback?.let { Json.decodeFromString(it) },
+                context = Json.decodeFromString(context)
             )
         }
     }
